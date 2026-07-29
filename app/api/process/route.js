@@ -1,10 +1,10 @@
 import { NextResponse } from "next/server";
 import { parseInvoicePdf } from "../../../lib/parseInvoicePdf";
-import { parseAllocationExcel } from "../../../lib/parseAllocationExcel";
-import { distributeUnassigned } from "../../../lib/distributeUnassigned";
+import { parseAllocationExcel, normalizeLocationKey } from "../../../lib/parseAllocationExcel";
 import { computeAllocations } from "../../../lib/computeAllocations";
 import { buildAllocationWorkbook, buildApEntryCsv } from "../../../lib/generateOutputs";
 import { generateAllocationPdf } from "../../../lib/generatePdf";
+import { generateAllocationSummary } from "../../../lib/generateAllocationSummary";
 import { seedAllocationRules } from "../../../lib/seedAllocationRules";
 
 export const runtime = "nodejs";
@@ -12,7 +12,7 @@ export const runtime = "nodejs";
 function seedRulesAsMap() {
   const map = {};
   for (const { location, projects } of seedAllocationRules) {
-    map[location.toLowerCase()] = { displayName: location, projects };
+    map[normalizeLocationKey(location)] = { displayName: location, projects };
   }
   return map;
 }
@@ -40,13 +40,12 @@ export async function POST(request) {
       allocationRules = seedRulesAsMap();
     }
 
-    const distributedLocations = distributeUnassigned(
+    const { lines, warnings, distributedLocations } = computeAllocations(
       invoiceData.locations,
       invoiceData.unassignedAmount,
-      invoiceData.locationsSubtotal
+      invoiceData.locationsSubtotal,
+      allocationRules
     );
-
-    const { lines, warnings } = computeAllocations(distributedLocations, allocationRules);
 
     const workbookBuffer = buildAllocationWorkbook({
       invoiceNumber: invoiceData.invoiceNumber || "UNKNOWN",
@@ -74,6 +73,14 @@ export async function POST(request) {
       invoiceGrandTotal: invoiceData.invoiceGrandTotal,
     });
 
+    const summaryBuffer = generateAllocationSummary({
+      invoiceNumber: invoiceData.invoiceNumber || "UNKNOWN",
+      invoiceDate: invoiceData.invoiceDate || "",
+      lines,
+      distributedLocations,
+      allocationRules,
+    });
+
     return NextResponse.json({
       invoiceNumber: invoiceData.invoiceNumber,
       invoiceDate: invoiceData.invoiceDate,
@@ -87,6 +94,7 @@ export async function POST(request) {
       allocationWorkbookBase64: workbookBuffer.toString("base64"),
       apEntryCsvBase64: Buffer.from(csvString, "utf-8").toString("base64"),
       allocationPdfBase64: pdfBuffer.toString("base64"),
+      allocationSummaryBase64: summaryBuffer.toString("base64"),
     });
   } catch (err) {
     console.error(err);

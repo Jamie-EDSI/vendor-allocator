@@ -196,6 +196,18 @@ export default function Home() {
             >
               Download Allocation PDF
             </button>
+            <button
+              onClick={() =>
+                downloadBase64(
+                  result.allocationSummaryBase64,
+                  `${result.invoiceNumber}-allocation-summary.xlsx`,
+                  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                )
+              }
+              style={buttonStyle}
+            >
+              Allocation Summary
+            </button>
           </div>
 
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
