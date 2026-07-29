@@ -129,21 +129,21 @@ export default function Home() {
             Invoice {result.invoiceNumber} — {result.invoiceDate}
           </h2>
           <p style={{ color: "#555" }}>
-            Invoice total: ${result.invoiceGrandTotal?.toFixed(2)} &nbsp;|&nbsp; Allocatable to
-            locations: ${result.locationsSubtotal?.toFixed(2)} &nbsp;|&nbsp; Allocated total: $
+            Invoice total: ${result.invoiceGrandTotal?.toFixed(2)} &nbsp;|&nbsp; Allocated total: $
             {totalAllocated.toFixed(2)}
-            {Math.abs(totalAllocated - result.locationsSubtotal) > 0.01 && (
+            {Math.abs(totalAllocated - result.invoiceGrandTotal) > 0.01 && (
               <span style={{ color: "#b00020", fontWeight: 600 }}>
                 {" "}
-                — doesn't match locations subtotal, check warnings below
+                — doesn't match invoice total, check warnings below
               </span>
             )}
           </p>
           {result.unassignedAmount > 0.01 && (
             <p style={{ color: "#777", fontSize: 13 }}>
-              ${result.unassignedAmount.toFixed(2)} of this invoice is corporate/unassigned
-              charges (not tied to a location) and is intentionally excluded from the
-              allocation — same as your current process.
+              ${result.unassignedAmount.toFixed(2)} of this invoice was corporate/unassigned
+              (not tied to a location) and has been spread proportionally across all locations
+              before splitting by project — see the Entry Distribution page/sheet in the
+              downloads.
             </p>
           )}
 

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { parseInvoicePdf } from "../../../lib/parseInvoicePdf";
 import { parseAllocationExcel } from "../../../lib/parseAllocationExcel";
+import { distributeUnassigned } from "../../../lib/distributeUnassigned";
 import { computeAllocations } from "../../../lib/computeAllocations";
 import { buildAllocationWorkbook, buildApEntryCsv } from "../../../lib/generateOutputs";
 import { generateAllocationPdf } from "../../../lib/generatePdf";
@@ -39,13 +40,22 @@ export async function POST(request) {
       allocationRules = seedRulesAsMap();
     }
 
-    const { lines, warnings } = computeAllocations(invoiceData.locations, allocationRules);
+    const distributedLocations = distributeUnassigned(
+      invoiceData.locations,
+      invoiceData.unassignedAmount,
+      invoiceData.locationsSubtotal
+    );
+
+    const { lines, warnings } = computeAllocations(distributedLocations, allocationRules);
 
     const workbookBuffer = buildAllocationWorkbook({
       invoiceNumber: invoiceData.invoiceNumber || "UNKNOWN",
       invoiceDate: invoiceData.invoiceDate || "",
       vendor,
       lines,
+      distributedLocations,
+      unassignedAmount: invoiceData.unassignedAmount,
+      invoiceGrandTotal: invoiceData.invoiceGrandTotal,
     });
 
     const csvString = buildApEntryCsv({
@@ -59,6 +69,9 @@ export async function POST(request) {
       invoiceNumber: invoiceData.invoiceNumber || "UNKNOWN",
       invoiceDate: invoiceData.invoiceDate || "",
       lines,
+      distributedLocations,
+      unassignedAmount: invoiceData.unassignedAmount,
+      invoiceGrandTotal: invoiceData.invoiceGrandTotal,
     });
 
     return NextResponse.json({
@@ -68,6 +81,7 @@ export async function POST(request) {
       locationsSubtotal: invoiceData.locationsSubtotal,
       unassignedAmount: invoiceData.unassignedAmount,
       locations: invoiceData.locations,
+      distributedLocations,
       lines,
       warnings,
       allocationWorkbookBase64: workbookBuffer.toString("base64"),
